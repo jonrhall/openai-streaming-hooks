@@ -6,9 +6,9 @@ Provides [custom React Hooks](https://react.dev/learn/reusing-logic-with-custom-
 
 ## Example
 
-TODO: Gif example goes here
+![Usage example](./example/example.gif)
 
-[Example code here]()
+[Example code here](https://github.com/jonrhall/openai-streaming-hooks/blob/main/example/example.tsx)
 
 ## Use
 

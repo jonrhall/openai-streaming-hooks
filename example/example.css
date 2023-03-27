@@ -1,0 +1,86 @@
+:root {
+  background-color: #dddddd;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  -webkit-text-size-adjust: 100%;
+}
+
+.chat-wrapper {
+  max-width: 40rem;
+  margin: 0 auto 10rem auto;
+  padding: 0 2rem;
+  font-family: ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,Noto Sans,sans-serif,Helvetica Neue,Arial;
+}
+
+.empty {
+  padding: 2rem 0;
+  color: #444444;
+}
+
+.message-wrapper {
+  border-top: 1px solid rgb(158, 174, 190);
+  padding-top: 1rem;
+  margin-top: 1rem;
+}
+
+.message-wrapper:first-child {
+  border-top: none;
+}
+
+.message-wrapper pre {
+  font-size: 1rem;
+  font-family: ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,Noto Sans,sans-serif,Helvetica Neue,Arial;
+}
+
+.chat-message {
+  white-space: pre-wrap;
+}
+
+.role {
+  font-size: 0.8rem;
+}
+
+.tag-wrapper {
+  display: flex;
+}
+
+.tag {
+  margin: 0 1rem;
+  font-size: 0.8rem;
+}
+
+.tag:first-child {
+  margin-left: 0;
+}
+
+.prompt-wrapper {
+  position: fixed;
+  bottom: 0;
+  width: 100%;
+  left: 0;
+  padding: 1rem 0;
+  background-color: #dddddd;
+}
+
+.prompt-wrapper > div {
+  display: flex;
+  width: 100%;
+  max-width: 40rem;
+  margin: 0 auto;
+}
+
+.prompt-wrapper textarea {
+  width: 100%;
+  margin-right: 1rem;
+  padding: 1rem;
+  font-size: 1rem;
+  resize: none;
+  margin-left: 2rem;
+}
+
+.prompt-wrapper button {
+  padding: 0 1rem;
+  margin-right: 2rem;
+}
