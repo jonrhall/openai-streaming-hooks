@@ -2,11 +2,13 @@
   "name": "openai-streaming-hooks",
   "version": "1.0.0",
   "description": "React Hooks for streaming connections to OpenAI APIs",
-  "main": "index.js",
-  "module": "index.js",
+  "main": "dist/index.js",
+  "module": "dist/index.js",
+  "types": "dist/index.d.ts",
   "scripts": {
     "lint": "eslint src/ --ext .ts",
-    "build": "tsc"
+    "build": "tsc",
+    "prepare": "npm run build"
   },
   "keywords": [
     "react",
