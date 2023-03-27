@@ -1,0 +1,34 @@
+{
+  "name": "openai-streaming-hooks",
+  "version": "1.0.0",
+  "description": "React Hooks for streaming connections to OpenAI APIs",
+  "main": "index.js",
+  "module": "index.js",
+  "scripts": {
+    "lint": "eslint src/ --ext .ts",
+    "build": "tsc"
+  },
+  "keywords": [
+    "react",
+    "react-hooks",
+    "openai"
+  ],
+  "author": "jonrhall",
+  "license": "MIT",
+  "dependencies": {
+    "react": "^18.2.0",
+    "sse": "github:mpetazzoni/sse.js"
+  },
+  "devDependencies": {
+    "@types/react": "^18.0.29",
+    "@types/react-dom": "^18.0.11",
+    "@typescript-eslint/eslint-plugin": "^5.56.0",
+    "@typescript-eslint/parser": "^5.56.0",
+    "eslint": "^8.36.0",
+    "eslint-plugin-import": "^2.27.5",
+    "eslint-plugin-n": "^15.6.1",
+    "eslint-plugin-promise": "^6.1.1",
+    "eslint-plugin-react": "^7.32.2",
+    "typescript": "^5.0.2"
+  }
+}
