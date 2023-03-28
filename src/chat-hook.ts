@@ -24,15 +24,25 @@ interface ChatMessageIncomingChunk {
   role?: string;
 }
 
-export interface ChatMessageToken {
+export interface OpenAIChatMessage {
   content: string;
   role: string;
+}
+
+export interface ChatMessageToken extends OpenAIChatMessage {
   timestamp: number;
 }
 
-export interface ChatMessage {
-  content: string;
-  role: string;
+export interface ChatMessageParams extends OpenAIChatMessage {
+  timestamp?: number;
+  meta?: {
+    loading?: boolean;
+    responseTime?: string;
+    chunks?: ChatMessageToken[];
+  };
+}
+
+export interface ChatMessage extends ChatMessageParams {
   timestamp: number;
   meta: {
     loading: boolean;
@@ -41,22 +51,45 @@ export interface ChatMessage {
   };
 }
 
-export interface openAIStreamingProps {
+export interface OpenAIStreamingProps {
   apiKey: string;
   model: GPT35 | GPT4;
 }
 
 const CHAT_COMPLETIONS_URL = 'https://api.openai.com/v1/chat/completions';
 
-const officialOpenAIParams = ({ content, role }: ChatMessage) => ({ content, role });
+// Utility method for transforming a chat message decorated with metadata to a more limited shape
+// that the OpenAI API expects.
+const officialOpenAIParams = ({ content, role }: ChatMessage): OpenAIChatMessage => ({ content, role });
 
-export const useChatCompletion = ({ model, apiKey }: openAIStreamingProps) => {
+// Utility method for transforming a chat message that may or may not be decorated with metadata
+// to a fully-fledged chat message with metadata.
+const createChatMessage = ({ content, role, ...restOfParams }: ChatMessageParams): ChatMessage => ({
+  content,
+  role,
+  timestamp: restOfParams.timestamp || Date.now(),
+  meta: {
+    loading: false,
+    responseTime: '',
+    chunks: [],
+    ...restOfParams.meta,
+  },
+});
+
+export const useChatCompletion = ({ model, apiKey }: OpenAIStreamingProps) => {
   const [messages, setMessages] = React.useState<ChatMessage[]>([]);
 
-  const submitMessage = React.useCallback((promptText: string, role: ChatRole = ChatRole.USER) => {
-    // Don't let two streaming calls occur at the same time.
-    // Don't let an empty message be submitted, it won't work.
-    if (messages[messages.length-1]?.meta?.loading || promptText === '') return;
+  const submitQuery = React.useCallback((newMessages?: ChatMessageParams[]) => {
+    // If the array is empty or there are no new messages submited, that is a special request to
+    // clear the `messages` queue and prepare to start over, do not make a request.
+    if (!newMessages || newMessages.length < 1) {
+      setMessages([]);
+      return;
+    }
+
+    // Don't let two streaming calls occur at the same time. If the last message in the list has
+    // a `loading` state set to true, we know there is a request in progress.
+    if (messages[messages.length-1]?.meta?.loading) return;
 
     // Record the timestamp before the request starts.
     const beforeTimestamp = Date.now();
@@ -65,26 +98,8 @@ export const useChatCompletion = ({ model, apiKey }: openAIStreamingProps) => {
     // that will be returned from the API.
     const updatedMessages: ChatMessage[] = [
       ...messages,
-      {
-        content: promptText,
-        role: role,
-        timestamp: Date.now(),
-        meta: {
-          loading: false,
-          responseTime: '',
-          chunks: [],
-        },
-      },
-      {
-        content: '',
-        role: '',
-        timestamp: 0,
-        meta: {
-          loading: true,
-          responseTime: '',
-          chunks: [],
-        },
-      }
+      ...newMessages.map(createChatMessage),
+      createChatMessage({ content: '', role: '', meta: { loading: true } }),
     ];
 
     // Set the updated message list.
@@ -185,5 +200,5 @@ export const useChatCompletion = ({ model, apiKey }: openAIStreamingProps) => {
     source.stream();
   }, [messages, setMessages]);
 
-  return [messages, submitMessage] as [ChatMessage[], typeof submitMessage];
+  return [messages, submitQuery] as [ChatMessage[], typeof submitQuery];
 };

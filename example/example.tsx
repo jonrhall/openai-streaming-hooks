@@ -17,11 +17,11 @@ const ExampleComponent = () => {
   const [promptText, setPromptText] = React.useState('');
   const [messages, submitMessage] = useChatCompletion({
     model: GPT35.TURBO,
-    apiKey: '', // <-- DEFINE YOUR OPENAI API KEY HERE
+    apiKey: import.meta.env.VITE_OPENAI_API_KEY,
   });
 
   const onSend = () => {
-    submitMessage(promptText);
+    submitMessage([{ content: promptText, role: ChatRole.USER }]);
     setPromptText('');
   };
 
@@ -36,8 +36,8 @@ const ExampleComponent = () => {
       <div className="chat-wrapper">
         {messages.length < 1 ? (
           <div className="empty">No messages</div>
-        ) : messages.map((msg) => (
-          <div className="message-wrapper">
+        ) : messages.map((msg, i) => (
+          <div className="message-wrapper" key={i}>
             <div className="role">Role: {msg.role}</div>
             <pre className="chat-message">{msg.content}</pre>
             {!msg.meta.loading && (

@@ -10,6 +10,8 @@ Provides [custom React Hooks](https://react.dev/learn/reusing-logic-with-custom-
 
 [Example code here](https://github.com/jonrhall/openai-streaming-hooks/blob/main/example/example.tsx)
 
+See section on [running the example](#running-the-example) for more information.
+
 ## Use
 
 1. Install the OpenAI Streaming Hooks library:
@@ -21,7 +23,7 @@ npm install --save openai-streaming-hooks@https://github.com/jonrhall/openai-str
 import { useChatCompletion, GPT35 } from 'openai-streaming-hooks';
 
 const Component = () => {
-  const [messages, submitMessage] = useChatCompletion({
+  const [messages, submitQuery] = useChatCompletion({
     model: GPT35.TURBO,
     apiKey: 'your-api-key',
   });
@@ -38,9 +40,7 @@ There are two main types of completions available from OpenAI that are supported
 
 There are some pretty big fundamental differences in the way these models are supported on the API side. Chat Completions consider the context of previous messages when making the next completion. Text Completions only consider the context passed into the explicit message it is currently answering.
 
-The custom React Hooks in this library try to normalize this behavior by returning the same tuple structure of `[messages, submitMessage]` to the React component regardless of the type of Completion used.
-
-The structure of a message object inside of `messages` differs based on the type of Completion.
+For more information on chat vs. text completion models, see [LangChain's excellent blog post on the topic](https://blog.langchain.dev/chat-models/).
 
 ### Chat Completions
 
@@ -68,8 +68,41 @@ interface ChatMessageToken {
 }
 ```
 
+## Submitting a Query
 
-When the `submitMessage` function is called two new chat messages are appended to the `messages` state variable:
+Call the `submitQuery` function to spawn a request whose response will be streamed back to the client from the OpenAI Chat Completions API. A query takes a list of new messages to append to the existing `messages` list and submit to OpenAI.
 
-1. The first is the message that you just submitted with a `role` of type `User`
-2. The second is the message that content will be streamed into in real-time as the OpenAI completion executes.
+A sample message list might look like:
+```ts
+const newMessages = [
+  { role: 'system', content: 'You are a short story bot, you write short stories for kids' },
+  { role: 'user', content: 'Write a story about a lonely bunny' },
+];
+```
+
+When the query is submitted, a blank message is appended to the end of the `messages` list with its `meta.loading` state set to `true`. This message will be where the content that is streamed back to the client is collected in real-time. 
+
+New chunks of the message will appear in the `meta.chunks` list and your React component will be updated every time a new chunk appears automatically.
+
+> 💡 **Chunks correspond directly to tokens.**
+>
+> By counting the number of chunks, you can count the number of tokens that a response used.
+
+If the `submitQuery` function is called without any parameters or with an empty list, no request will be sent and instead the `messages` list will be set back to empty. 
+
+## Running the Example
+
+1. Clone this package locally and navigate to it:
+```bash
+git clone https://github.com/jonrhall/openai-streaming-hooks.git
+cd openai-streaming-hooks
+```
+2. Export your [OpenAI API Key](https://platform.openai.com/account/api-keys) as environment variable `VITE_OPENAI_API_KEY`:
+```bash
+export VITE_OPENAI_API_KEY=your-key-here
+```
+3. Run the example dev server:
+```bash
+npm run example
+```
+4. Navigate to `https://localhost:5179` to see the live example.
