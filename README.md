@@ -4,6 +4,13 @@
 
 Provides [custom React Hooks](https://react.dev/learn/reusing-logic-with-custom-hooks) capable of calling OpenAI Completions APIs with [streaming support](https://github.com/openai/openai-cookbook/blob/main/examples/How_to_stream_completions.ipynb) enabled by [Server-Sent Events (SSE)](https://developer.mozilla.org/en-US/docs/Web/API/Server-sent_events/Using_server-sent_events).
 
+The library then decorates every Completion response with metadata about the transaction such as:
+  - The number of tokens used in the response
+  - The time it took to complete the request
+  - Each chunk of the stream
+  - The timestamp each chunk was received
+  - The timestamp from when the Completion was finished
+
 ## Example
 
 ![Usage example](./example/example.gif)
