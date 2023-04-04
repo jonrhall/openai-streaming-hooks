@@ -1,6 +1,6 @@
 {
   "name": "openai-streaming-hooks",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "React Hooks for streaming connections to OpenAI APIs",
   "main": "dist/index.js",
   "module": "dist/index.js",

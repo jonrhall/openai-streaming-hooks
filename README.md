@@ -13,7 +13,7 @@ The library then decorates every Completion response with metadata about the tra
 
 ## Example
 
-![Usage example](./example/example.gif)
+![Usage example](https://github.com/jonrhall/openai-streaming-hooks/blob/main/example/example.gif)
 
 [Example code here](https://github.com/jonrhall/openai-streaming-hooks/blob/main/example/example.tsx)
 
