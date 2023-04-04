@@ -21,9 +21,9 @@ See section on [running the example](#running-the-example) for more information.
 
 ## Use
 
-1. Install the OpenAI Streaming Hooks library:
+1. Install the OpenAI Streaming Hooks library via a package manager like `npm` or `yarn`:
 ```bash
-npm install --save openai-streaming-hooks@https://github.com/jonrhall/openai-streaming-hooks
+npm install --save openai-streaming-hooks
 ```
 2. Import the hook and use it:
 ```tsx
