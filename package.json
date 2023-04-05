@@ -9,7 +9,9 @@
     "lint": "eslint src/ --ext .ts",
     "build": "tsc",
     "prepare": "npm run build",
-    "example": "vite serve example"
+    "example": "vite serve example",
+    "test": "vitest",
+    "test:coverage": "vitest run --coverage"
   },
   "keywords": [
     "react",
@@ -23,18 +25,22 @@
     "sse": "github:mpetazzoni/sse.js"
   },
   "devDependencies": {
+    "@testing-library/react": "^14.0.0",
     "@types/react": "^18.0.29",
     "@types/react-dom": "^18.0.11",
     "@typescript-eslint/eslint-plugin": "^5.56.0",
     "@typescript-eslint/parser": "^5.56.0",
     "@vitejs/plugin-react": "^3.1.0",
+    "@vitest/coverage-c8": "^0.29.8",
     "eslint": "^8.36.0",
     "eslint-plugin-import": "^2.27.5",
     "eslint-plugin-n": "^15.6.1",
     "eslint-plugin-promise": "^6.1.1",
     "eslint-plugin-react": "^7.32.2",
+    "jsdom": "^21.1.1",
     "react-dom": "^18.2.0",
     "typescript": "^5.0.2",
-    "vite": "^4.2.1"
+    "vite": "^4.2.1",
+    "vitest": "^0.29.8"
   }
 }

@@ -80,16 +80,16 @@ export const useChatCompletion = ({ model, apiKey }: OpenAIStreamingProps) => {
   const [messages, setMessages] = React.useState<ChatMessage[]>([]);
 
   const submitQuery = React.useCallback((newMessages?: ChatMessageParams[]) => {
+    // Don't let two streaming calls occur at the same time. If the last message in the list has
+    // a `loading` state set to true, we know there is a request in progress.
+    if (messages[messages.length-1]?.meta?.loading) return;
+
     // If the array is empty or there are no new messages submited, that is a special request to
     // clear the `messages` queue and prepare to start over, do not make a request.
     if (!newMessages || newMessages.length < 1) {
       setMessages([]);
       return;
     }
-
-    // Don't let two streaming calls occur at the same time. If the last message in the list has
-    // a `loading` state set to true, we know there is a request in progress.
-    if (messages[messages.length-1]?.meta?.loading) return;
 
     // Record the timestamp before the request starts.
     const beforeTimestamp = Date.now();
@@ -136,33 +136,42 @@ export const useChatCompletion = ({ model, apiKey }: OpenAIStreamingProps) => {
       // If a DONE token is found, the stream has been terminated.
       if (e?.data !== '[DONE]') {
         // Parse the data from the update.
-        const payload = JSON.parse(e?.data || '{}');
+        let payload;
+
+        try {
+          payload = JSON.parse(e?.data || '{}');
+        } catch (e) {
+          payload = undefined;
+        }
+
         const chunk: ChatMessageIncomingChunk = payload?.choices?.[0]?.delta;
 
-        // Update the messages list, specifically update the last message entry with the most
-        // recently received chunk.
-        setMessages((msgs) => msgs.map((message, i) => {
-          if (updatedMessages.length-1 === i) {
-            return {
-              content: message.content + (chunk?.content || ''),
-              role: message.role + (chunk?.role || ''),
-              timestamp: 0,
-              meta: {
-                ...message.meta,
-                chunks: [
-                  ...message.meta.chunks,
-                  {
-                    content: chunk?.content || '',
-                    role: chunk?.role || '',
-                    timestamp: Date.now(),
-                  },
-                ],
-              },
-            };
-          }
-
-          return message;
-        }));
+        // If the chunk is well-formed, update the messages list, specifically update the last
+        // message entry in the list with the most recently received chunk.
+        if (chunk) {
+          setMessages((msgs) => msgs.map((message, i) => {
+            if (updatedMessages.length-1 === i) {
+              return {
+                content: message.content + (chunk?.content || ''),
+                role: message.role + (chunk?.role || ''),
+                timestamp: 0,
+                meta: {
+                  ...message.meta,
+                  chunks: [
+                    ...message.meta.chunks,
+                    {
+                      content: chunk?.content || '',
+                      role: chunk?.role || '',
+                      timestamp: Date.now(),
+                    },
+                  ],
+                },
+              };
+            }
+  
+            return message;
+          }));
+        }
       } else {
         source.close();
       }
