@@ -11,7 +11,8 @@
   max-width: 40rem;
   margin: 0 auto 10rem auto;
   padding: 0 2rem;
-  font-family: ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,Noto Sans,sans-serif,Helvetica Neue,Arial;
+  font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Ubuntu,
+    Cantarell, Noto Sans, sans-serif, Helvetica Neue, Arial;
 }
 
 .empty {
@@ -31,7 +32,8 @@
 
 .message-wrapper pre {
   font-size: 1rem;
-  font-family: ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,Noto Sans,sans-serif,Helvetica Neue,Arial;
+  font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Ubuntu,
+    Cantarell, Noto Sans, sans-serif, Helvetica Neue, Arial;
 }
 
 .chat-message {

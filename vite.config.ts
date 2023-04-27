@@ -12,7 +12,7 @@ export default defineConfig({
     environment: 'jsdom',
     include: ['./test/**/*.test.ts'],
     coverage: {
-      reporter: ['text', 'json', 'html'],
+      reporter: ['text', 'json', 'html', 'lcov'],
     },
     reporters: ['verbose'],
   },

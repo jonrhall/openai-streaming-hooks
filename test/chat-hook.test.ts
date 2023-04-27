@@ -22,10 +22,12 @@ describe('useChatCompletion Hook', () => {
 
   // Before each test, create a new hook and reset the internal state of the SSE mocks
   beforeEach(() => {
-    const hookObj = renderHook(() => useChatCompletion({
-      model: GPT35.TURBO,
-      apiKey: '12345',
-    }));
+    const hookObj = renderHook(() =>
+      useChatCompletion({
+        model: GPT35.TURBO,
+        apiKey: '12345',
+      })
+    );
     result = hookObj.result;
     addEventListener.mockClear();
     streamClose.mockClear();
@@ -39,7 +41,9 @@ describe('useChatCompletion Hook', () => {
   it('adds 2 messages to the messages list when 1 message is submitted in the initial query', () => {
     const [, submitQuery] = result.current;
     act(() => {
-      submitQuery([{ content: 'What is the meaning of life?', role: ChatRole.USER }]);
+      submitQuery([
+        { content: 'What is the meaning of life?', role: ChatRole.USER },
+      ]);
     });
     const [messages] = result.current;
     expect(messages).toHaveLength(2);
@@ -49,7 +53,10 @@ describe('useChatCompletion Hook', () => {
     const [, submitQuery] = result.current;
     act(() => {
       submitQuery([
-        { content: 'What is the meaning of life, the universe, and everything?', role: ChatRole.USER },
+        {
+          content: 'What is the meaning of life, the universe, and everything?',
+          role: ChatRole.USER,
+        },
         { content: 'How does gravity work?', role: ChatRole.USER },
         { content: 'Explain dark matter to me', role: ChatRole.USER },
       ]);
@@ -58,11 +65,14 @@ describe('useChatCompletion Hook', () => {
     expect(messages).toHaveLength(4);
   });
 
-  it('doesn\'t submit a new query if an existing one is already in progress', () => {
+  it("doesn't submit a new query if an existing one is already in progress", () => {
     const [, submitQuery1] = result.current;
     act(() => {
       submitQuery1([
-        { content: 'What is the meaning of life, the universe, and everything?', role: ChatRole.USER },
+        {
+          content: 'What is the meaning of life, the universe, and everything?',
+          role: ChatRole.USER,
+        },
         { content: 'How does gravity work?', role: ChatRole.USER },
         { content: 'Explain dark matter to me', role: ChatRole.USER },
       ]);
@@ -80,10 +90,12 @@ describe('useChatCompletion Hook', () => {
   });
 
   it('works with GPT4 too', () => {
-    const hookObj = renderHook(() => useChatCompletion({
-      model: GPT4.BASE,
-      apiKey: '12345',
-    }));
+    const hookObj = renderHook(() =>
+      useChatCompletion({
+        model: GPT4.BASE,
+        apiKey: '12345',
+      })
+    );
     const [messages] = hookObj.result.current;
     expect(messages).toHaveLength(0);
   });
@@ -94,7 +106,9 @@ describe('useChatCompletion Hook', () => {
     beforeEach(() => {
       const [, submitQuery] = result.current;
       act(() => {
-        submitQuery([{ content: 'What is the meaning of life?', role: ChatRole.USER }]);
+        submitQuery([
+          { content: 'What is the meaning of life?', role: ChatRole.USER },
+        ]);
       });
       const handleStateChangeFn = addEventListener.mock.calls[1][1];
       act(() => {
@@ -111,7 +125,7 @@ describe('useChatCompletion Hook', () => {
       const [messages2] = result.current;
       expect(messages2).toHaveLength(0);
     });
-  
+
     it('sets the messages to empty when submitQuery is invoked with an empty list', () => {
       const [messages1, submitQuery] = result.current;
       expect(messages1).toHaveLength(2);
@@ -130,7 +144,9 @@ describe('useChatCompletion Hook', () => {
       beforeEach(() => {
         const [, submitQuery] = result.current;
         act(() => {
-          submitQuery([{ content: 'What is the meaning of life?', role: ChatRole.USER }]);
+          submitQuery([
+            { content: 'What is the meaning of life?', role: ChatRole.USER },
+          ]);
         });
         handleMessageFn = addEventListener.mock.calls[0][1];
       });
@@ -205,7 +221,9 @@ describe('useChatCompletion Hook', () => {
       beforeEach(() => {
         const [, submitQuery] = result.current;
         act(() => {
-          submitQuery([{ content: 'What is the meaning of life?', role: ChatRole.USER }]);
+          submitQuery([
+            { content: 'What is the meaning of life?', role: ChatRole.USER },
+          ]);
         });
         handleStateChangeFn = addEventListener.mock.calls[1][1];
       });
@@ -230,7 +248,7 @@ describe('useChatCompletion Hook', () => {
         expect(messages2[1].meta.responseTime === '').toEqual(false);
       });
 
-      it('ignores state changes that aren\'t related to the stream finishing', () => {
+      it("ignores state changes that aren't related to the stream finishing", () => {
         const [messages1] = result.current;
         expect(messages1[1].meta.loading).toEqual(true);
         act(() => {

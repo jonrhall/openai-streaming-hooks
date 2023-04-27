@@ -3,15 +3,16 @@ import ReactDOM from 'react-dom/client';
 import './example.css';
 import { useChatCompletion, GPT35, ChatRole } from '../src';
 
-const formatDate = (date: Date) => date.toLocaleString('en-US', {
-  year: 'numeric',
-  month: '2-digit',
-  day: '2-digit',
-  hour: 'numeric',
-  minute: 'numeric',
-  second: 'numeric',
-  timeZoneName: 'short',
-});
+const formatDate = (date: Date) =>
+  date.toLocaleString('en-US', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: 'numeric',
+    minute: 'numeric',
+    second: 'numeric',
+    timeZoneName: 'short',
+  });
 
 const ExampleComponent = () => {
   const [promptText, setPromptText] = React.useState('');
@@ -36,37 +37,43 @@ const ExampleComponent = () => {
       <div className="chat-wrapper">
         {messages.length < 1 ? (
           <div className="empty">No messages</div>
-        ) : messages.map((msg, i) => (
-          <div className="message-wrapper" key={i}>
-            <div className="role">Role: {msg.role}</div>
-            <pre className="chat-message">{msg.content}</pre>
-            {!msg.meta.loading && (
-              <div className="tag-wrapper">
-                <span className="tag">
-                  Timestamp: {formatDate(new Date(msg.timestamp))}
-                </span>
-                {msg.role === ChatRole.ASSISTANT && (
-                  <>
+        ) : (
+          messages.map((msg, i) => (
+            <div className="message-wrapper" key={i}>
+              <div className="role">Role: {msg.role}</div>
+              <pre className="chat-message">{msg.content}</pre>
+              {!msg.meta.loading && (
+                <div className="tag-wrapper">
                   <span className="tag">
-                    Tokens: {msg.meta.chunks.length}
+                    Timestamp: {formatDate(new Date(msg.timestamp))}
                   </span>
-                  <span className="tag">
-                    Response time: {msg.meta.responseTime}
-                  </span>
-                  </>
-                )}
-              </div>
-            )}
-          </div>
-        ))}
+                  {msg.role === ChatRole.ASSISTANT && (
+                    <>
+                      <span className="tag">
+                        Tokens: {msg.meta.chunks.length}
+                      </span>
+                      <span className="tag">
+                        Response time: {msg.meta.responseTime}
+                      </span>
+                    </>
+                  )}
+                </div>
+              )}
+            </div>
+          ))
+        )}
       </div>
       <div className="prompt-wrapper">
         <div>
           <textarea
             value={promptText}
             placeholder="Write a prompt"
-            onChange={(event) => { setPromptText(event.target.value); }}
-            disabled={messages.length > 0 && messages[messages.length-1].meta.loading}
+            onChange={(event) => {
+              setPromptText(event.target.value);
+            }}
+            disabled={
+              messages.length > 0 && messages[messages.length - 1].meta.loading
+            }
           />
           <button onClick={onSend}>Send</button>
         </div>
@@ -80,5 +87,5 @@ export default ExampleComponent;
 ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
   <React.StrictMode>
     <ExampleComponent />
-  </React.StrictMode>,
+  </React.StrictMode>
 );
