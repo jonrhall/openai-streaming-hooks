@@ -19,6 +19,7 @@ const ExampleComponent = () => {
   const [messages, submitMessage] = useChatCompletion({
     model: GPT35.TURBO,
     apiKey: import.meta.env.VITE_OPENAI_API_KEY,
+    temperature: 0.9,
   });
 
   const onSend = () => {

@@ -51,9 +51,20 @@ export interface ChatMessage extends ChatMessageParams {
   };
 }
 
+// For more information on each of these properties:
+// https://platform.openai.com/docs/api-reference/chat
 export interface OpenAIStreamingProps {
   apiKey: string;
   model: GPT35 | GPT4;
+  temperature?: number;
+  top_p?: number;
+  n?: number;
+  stop?: string | string[];
+  max_tokens?: number;
+  presence_penalty?: number;
+  frequency_penalty?: number;
+  logit_bias?: Map<string|number,number>;
+  user?: string;
 }
 
 const CHAT_COMPLETIONS_URL = 'https://api.openai.com/v1/chat/completions';
@@ -83,7 +94,7 @@ const createChatMessage = ({
   },
 });
 
-export const useChatCompletion = ({ model, apiKey }: OpenAIStreamingProps) => {
+export const useChatCompletion = ({ apiKey, ...restofApiParams }: OpenAIStreamingProps) => {
   const [messages, setMessages] = React.useState<ChatMessage[]>([]);
 
   const submitQuery = React.useCallback(
@@ -115,7 +126,9 @@ export const useChatCompletion = ({ model, apiKey }: OpenAIStreamingProps) => {
 
       // The payload of the SSE request itself.
       const payload = JSON.stringify({
-        model,
+        // These params include the model ID and all settings related to how the user wants the
+        // OpenAI API to execute their request.
+        ...restofApiParams,
         // Filter out the last message, since technically that is the message that the server will
         // return from this request, we're just storing a placeholder for it ahead of time to signal
         // to the UI something is happening.
