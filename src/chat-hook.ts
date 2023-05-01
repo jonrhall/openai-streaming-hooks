@@ -1,73 +1,17 @@
 import React from 'react';
-import { SSE } from 'sse';
+import {
+  getOpenAiRequestOptions,
+  openAiStreamingDataHandler,
+} from './chat-stream-handler';
+import type {
+  ChatMessage,
+  OpenAIChatMessage,
+  ChatMessageParams,
+  OpenAIStreamingParams,
+  ChatRole,
+} from './types';
 
-export enum GPT35 {
-  TURBO = 'gpt-3.5-turbo',
-  TURBO_0301 = 'gpt-3.5-turbo-0301',
-}
-
-export enum GPT4 {
-  BASE = 'gpt-4',
-  BASE_0314 = 'gpt-4-0314',
-  BASE_32K = 'gpt-4-32k',
-  BASE_32K_0314 = 'gpt-4-32k-0314',
-}
-
-export enum ChatRole {
-  USER = 'user',
-  ASSISTANT = 'assistant',
-  SYSTEM = 'system',
-}
-
-interface ChatMessageIncomingChunk {
-  content?: string;
-  role?: string;
-}
-
-export interface OpenAIChatMessage {
-  content: string;
-  role: string;
-}
-
-export interface ChatMessageToken extends OpenAIChatMessage {
-  timestamp: number;
-}
-
-export interface ChatMessageParams extends OpenAIChatMessage {
-  timestamp?: number;
-  meta?: {
-    loading?: boolean;
-    responseTime?: string;
-    chunks?: ChatMessageToken[];
-  };
-}
-
-export interface ChatMessage extends ChatMessageParams {
-  timestamp: number;
-  meta: {
-    loading: boolean;
-    responseTime: string;
-    chunks: ChatMessageToken[];
-  };
-}
-
-// For more information on each of these properties:
-// https://platform.openai.com/docs/api-reference/chat
-export interface OpenAIStreamingProps {
-  apiKey: string;
-  model: GPT35 | GPT4;
-  temperature?: number;
-  top_p?: number;
-  n?: number;
-  stop?: string | string[];
-  max_tokens?: number;
-  presence_penalty?: number;
-  frequency_penalty?: number;
-  logit_bias?: Map<string|number,number>;
-  user?: string;
-}
-
-const CHAT_COMPLETIONS_URL = 'https://api.openai.com/v1/chat/completions';
+const MILLISECONDS_PER_SECOND = 1000;
 
 // Utility method for transforming a chat message decorated with metadata to a more limited shape
 // that the OpenAI API expects.
@@ -94,11 +38,69 @@ const createChatMessage = ({
   },
 });
 
-export const useChatCompletion = ({ apiKey, ...restofApiParams }: OpenAIStreamingProps) => {
+// Utility method for updating the last item in a list.
+const updateLastItem =
+  <T>(msgFn: (message: T) => T) =>
+  (currentMessages: T[]) =>
+    currentMessages.map((msg, i) => {
+      if (currentMessages.length - 1 === i) {
+        return msgFn(msg);
+      }
+      return msg;
+    });
+
+export const useChatCompletion = (apiParams: OpenAIStreamingParams) => {
   const [messages, setMessages] = React.useState<ChatMessage[]>([]);
+  const [controller, setController] = React.useState<AbortController | null>(
+    null
+  );
+
+  // When new data comes in, add the incremental chunk of data to the last message.
+  const handleNewData = (chunkContent: string, chunkRole: ChatRole) => {
+    setMessages(
+      updateLastItem((msg) => ({
+        content: `${msg.content}${chunkContent}`,
+        role: `${msg.role}${chunkRole}` as ChatRole,
+        timestamp: 0,
+        meta: {
+          ...msg.meta,
+          chunks: [
+            ...msg.meta.chunks,
+            {
+              content: chunkContent,
+              role: chunkRole,
+              timestamp: Date.now(),
+            },
+          ],
+        },
+      }))
+    );
+  };
+
+  const closeStream = (beforeTimestamp: number) => {
+    // Determine the final timestamp, and calculate the number of seconds the full request took.
+    const afterTimestamp = Date.now();
+    const diffInSeconds =
+      (afterTimestamp - beforeTimestamp) / MILLISECONDS_PER_SECOND;
+    const formattedDiff = diffInSeconds.toFixed(2) + ' sec.';
+
+    // Update the messages list, specifically update the last message entry with the final
+    // details of the full request/response.
+    setMessages(
+      updateLastItem((msg) => ({
+        ...msg,
+        timestamp: afterTimestamp,
+        meta: {
+          ...msg.meta,
+          loading: false,
+          responseTime: formattedDiff,
+        },
+      }))
+    );
+  };
 
   const submitQuery = React.useCallback(
-    (newMessages?: ChatMessageParams[]) => {
+    async (newMessages?: ChatMessageParams[]) => {
       // Don't let two streaming calls occur at the same time. If the last message in the list has
       // a `loading` state set to true, we know there is a request in progress.
       if (messages[messages.length - 1]?.meta?.loading) return;
@@ -109,9 +111,6 @@ export const useChatCompletion = ({ apiKey, ...restofApiParams }: OpenAIStreamin
         setMessages([]);
         return;
       }
-
-      // Record the timestamp before the request starts.
-      const beforeTimestamp = Date.now();
 
       // Update the messages list with the new message as well as a placeholder for the next message
       // that will be returned from the API.
@@ -124,114 +123,42 @@ export const useChatCompletion = ({ apiKey, ...restofApiParams }: OpenAIStreamin
       // Set the updated message list.
       setMessages(updatedMessages);
 
-      // The payload of the SSE request itself.
-      const payload = JSON.stringify({
-        // These params include the model ID and all settings related to how the user wants the
-        // OpenAI API to execute their request.
-        ...restofApiParams,
-        // Filter out the last message, since technically that is the message that the server will
-        // return from this request, we're just storing a placeholder for it ahead of time to signal
-        // to the UI something is happening.
-        // Map the updated message structure to only what the OpenAI API expects.
-        messages: updatedMessages
+      // Create a controller that can abort the entire request.
+      const newController = new AbortController();
+      const signal = newController.signal;
+      setController(newController);
+
+      // Define options that will be a part of the HTTP request.
+      const requestOpts = getOpenAiRequestOptions(
+        apiParams,
+        updatedMessages
+          // Filter out the last message, since technically that is the message that the server will
+          // return from this request, we're just storing a placeholder for it ahead of time to signal
+          // to the UI something is happening.
           .filter((m, i) => updatedMessages.length - 1 !== i)
+          // Map the updated message structure to only what the OpenAI API expects.
           .map(officialOpenAIParams),
-        stream: true,
-      });
+        signal
+      );
 
-      // Define the headers for the request.
-      const CHAT_HEADERS = {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${apiKey}`,
-      };
-
-      // Create the SSE request to the OpenAI chat completion API endpoint
-      const source = new SSE(CHAT_COMPLETIONS_URL, {
-        headers: CHAT_HEADERS,
-        method: 'POST',
-        payload,
-      });
-
-      // For each chunk received, process it and store it in the latest message.
-      source.addEventListener('message', (e) => {
-        // If a DONE token is found, the stream has been terminated.
-        if (e?.data !== '[DONE]') {
-          // Parse the data from the update.
-          let payload;
-
-          try {
-            payload = JSON.parse(e?.data || '{}');
-          } catch (e) {
-            payload = undefined;
-          }
-
-          const chunk: ChatMessageIncomingChunk = payload?.choices?.[0]?.delta;
-
-          // If the chunk is well-formed, update the messages list, specifically update the last
-          // message entry in the list with the most recently received chunk.
-          if (chunk) {
-            setMessages((msgs) =>
-              msgs.map((message, i) => {
-                if (updatedMessages.length - 1 === i) {
-                  return {
-                    content: message.content + (chunk?.content || ''),
-                    role: message.role + (chunk?.role || ''),
-                    timestamp: 0,
-                    meta: {
-                      ...message.meta,
-                      chunks: [
-                        ...message.meta.chunks,
-                        {
-                          content: chunk?.content || '',
-                          role: chunk?.role || '',
-                          timestamp: Date.now(),
-                        },
-                      ],
-                    },
-                  };
-                }
-
-                return message;
-              })
-            );
-          }
+      try {
+        // Wait for all the results to be streamed back to the client before proceeding.
+        // Register data and stream close event handlers to act when a new chunk comes
+        // in and when the stream is completed.
+        await openAiStreamingDataHandler(
+          requestOpts,
+          handleNewData,
+          closeStream
+        );
+      } catch (err) {
+        if (signal.aborted) {
+          console.error(`Request aborted`, err);
         } else {
-          source.close();
+          console.error(`Error during chat response streaming`, err);
         }
-      });
-
-      // Add an event listener for when the connection closes.
-      source.addEventListener('readystatechange', (e) => {
-        // readyState: 0 - connecting, 1 - open, 2 - closed
-        if (e.readyState && e.readyState > 1) {
-          // Determine the final timestamp, and calculate the number of seconds the full request took.
-          const afterTimestamp = Date.now();
-          const diffInSeconds = (afterTimestamp - beforeTimestamp) / 1000;
-          const formattedDiff = diffInSeconds.toFixed(2) + ' sec.';
-
-          // Update the messages list, specifically update the last message entry with the final
-          // details of the full request/response.
-          setMessages((msgs) =>
-            msgs.map((message, i) => {
-              if (updatedMessages.length - 1 === i) {
-                return {
-                  ...message,
-                  timestamp: afterTimestamp,
-                  meta: {
-                    ...message.meta,
-                    loading: false,
-                    responseTime: formattedDiff,
-                  },
-                };
-              }
-
-              return message;
-            })
-          );
-        }
-      });
-
-      source.stream();
+      } finally {
+        setController(null); // reset AbortController
+      }
     },
     [messages, setMessages]
   );

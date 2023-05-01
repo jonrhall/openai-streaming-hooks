@@ -8,10 +8,12 @@
   "scripts": {
     "lint": "eslint src/ --ext .ts",
     "build": "tsc",
+    "clean": "rm -rf node_modules/ dist/ coverage/",
     "prepare": "npm run build",
     "example": "vite serve example",
     "test": "vitest",
-    "test:coverage": "vitest run --coverage"
+    "test:coverage": "vitest run --coverage",
+    "prettier": "prettier --write ."
   },
   "keywords": [
     "react",
@@ -21,8 +23,7 @@
   "author": "jonrhall",
   "license": "MIT",
   "dependencies": {
-    "react": "^18.2.0",
-    "sse": "github:mpetazzoni/sse.js"
+    "react": "^18.2.0"
   },
   "devDependencies": {
     "@testing-library/react": "^14.0.0",

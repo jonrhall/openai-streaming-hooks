@@ -2,7 +2,7 @@
 
 > Talk directly to [OpenAI Completion APIs](https://platform.openai.com/docs/api-reference/chat) and stream the response back in real-time in the browser--no server required.
 
-Provides [custom React Hooks](https://react.dev/learn/reusing-logic-with-custom-hooks) capable of calling OpenAI Completions APIs with [streaming support](https://github.com/openai/openai-cookbook/blob/main/examples/How_to_stream_completions.ipynb) enabled by [Server-Sent Events (SSE)](https://developer.mozilla.org/en-US/docs/Web/API/Server-sent_events/Using_server-sent_events).
+Provides [custom React Hooks](https://react.dev/learn/reusing-logic-with-custom-hooks) capable of calling OpenAI Completions APIs with [streaming support](https://github.com/openai/openai-cookbook/blob/main/examples/How_to_stream_completions.ipynb) enabled by [ReadableStreams](https://developer.mozilla.org/en-US/docs/Web/API/ReadableStream).
 
 The library then decorates every Completion response with metadata about the transaction such as:
 
@@ -35,7 +35,7 @@ import { useChatCompletion, GPT35 } from 'openai-streaming-hooks';
 
 const Component = () => {
   const [messages, submitQuery] = useChatCompletion({
-    model: GPT35.TURBO,
+    model: 'gpt-3.5-turbo',
     apiKey: 'your-api-key',
     temperature: 0.9,
   });
@@ -51,7 +51,6 @@ const Component = () => {
 
 **Currently, this package only supports Chat Completions. Adding Text Completions support to this package is a future roadmap item (pull requests accepted).**
 
-
 There are two main types of completions available from OpenAI:
 
 1. [Chat Completions](https://platform.openai.com/docs/guides/chat), which includes models like `gpt-4` and `gpt-3.5-turbo`.
@@ -60,7 +59,6 @@ There are two main types of completions available from OpenAI:
 There are some pretty big fundamental differences in the way these models are supported on the API side. Chat Completions consider the context of previous messages when making the next completion. Text Completions only consider the context passed into the explicit message it is currently answering.
 
 For more information on chat vs. text completion models, see [LangChain's excellent blog post on the topic](https://blog.langchain.dev/chat-models/).
-
 
 ### Chat Completions
 
@@ -141,7 +139,20 @@ npm run example
 
 4. Navigate to `https://localhost:5179` to see the live example.
 
-## Contributions
+## Contributors
+
+<div style="display: flex;">
+  <a href="https://github.com/jonrhall" style="display: flex; flex-direction: column; align-items: center; padding: 0 10px 0 0;">
+    <img src="https://github.com/jonrhall.png" alt="Jon Hall" title="Jon Hall" width="100" height="100"/>
+    <span>Jon Hall</span>
+  </a>
+  <a href="https://github.com/MatchuPitchu" style="display: flex; flex-direction: column; align-items: center; padding: 0 10px 0 0;">
+    <img src="https://github.com/MatchuPitchu.png" alt="Michael Flohr" title="Michael Flohr" width="100" height="100"/>
+    <span>Michael Flohr</span>
+  </a>
+</div>
+
+### Future Contributions
 
 - This package accepts contributions in the form of Pull Requests against the `main` branch.
 - Please follow the coding format as put forth in the ESLint and Prettier definitions used in the package.

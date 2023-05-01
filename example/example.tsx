@@ -1,7 +1,7 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import './example.css';
-import { useChatCompletion, GPT35, ChatRole } from '../src';
+import { useChatCompletion } from '../src';
 
 const formatDate = (date: Date) =>
   date.toLocaleString('en-US', {
@@ -17,13 +17,13 @@ const formatDate = (date: Date) =>
 const ExampleComponent = () => {
   const [promptText, setPromptText] = React.useState('');
   const [messages, submitMessage] = useChatCompletion({
-    model: GPT35.TURBO,
+    model: 'gpt-3.5-turbo',
     apiKey: import.meta.env.VITE_OPENAI_API_KEY,
     temperature: 0.9,
   });
 
   const onSend = () => {
-    submitMessage([{ content: promptText, role: ChatRole.USER }]);
+    submitMessage([{ content: promptText, role: 'user' }]);
     setPromptText('');
   };
 
@@ -48,7 +48,7 @@ const ExampleComponent = () => {
                   <span className="tag">
                     Timestamp: {formatDate(new Date(msg.timestamp))}
                   </span>
-                  {msg.role === ChatRole.ASSISTANT && (
+                  {msg.role === 'assistant' && (
                     <>
                       <span className="tag">
                         Tokens: {msg.meta.chunks.length}
