@@ -29,7 +29,7 @@ const createChatMessage = ({
 }: ChatMessageParams): ChatMessage => ({
   content,
   role,
-  timestamp: restOfParams.timestamp || Date.now(),
+  timestamp: restOfParams.timestamp ?? Date.now(),
   meta: {
     loading: false,
     responseTime: '',
@@ -77,6 +77,7 @@ export const useChatCompletion = (apiParams: OpenAIStreamingParams) => {
     );
   };
 
+  // Handles what happens when the stream of a given completion is finished.
   const closeStream = (beforeTimestamp: number) => {
     // Determine the final timestamp, and calculate the number of seconds the full request took.
     const afterTimestamp = Date.now();
@@ -117,7 +118,12 @@ export const useChatCompletion = (apiParams: OpenAIStreamingParams) => {
       const updatedMessages: ChatMessage[] = [
         ...messages,
         ...newMessages.map(createChatMessage),
-        createChatMessage({ content: '', role: '', meta: { loading: true } }),
+        createChatMessage({
+          content: '',
+          role: '',
+          timestamp: 0,
+          meta: { loading: true },
+        }),
       ];
 
       // Set the updated message list.
@@ -143,11 +149,11 @@ export const useChatCompletion = (apiParams: OpenAIStreamingParams) => {
 
       try {
         // Wait for all the results to be streamed back to the client before proceeding.
-        // Register data and stream close event handlers to act when a new chunk comes
-        // in and when the stream is completed.
         await openAiStreamingDataHandler(
           requestOpts,
+          // The handleNewData function will be called as new data is received.
           handleNewData,
+          // The closeStream function be called when the message stream has been completed.
           closeStream
         );
       } catch (err) {
@@ -157,7 +163,8 @@ export const useChatCompletion = (apiParams: OpenAIStreamingParams) => {
           console.error(`Error during chat response streaming`, err);
         }
       } finally {
-        setController(null); // reset AbortController
+        // Remove the AbortController now the response has completed.
+        setController(null);
       }
     },
     [messages, setMessages]

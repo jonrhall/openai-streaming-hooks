@@ -1,36 +1,35 @@
 import { act, renderHook } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { useChatCompletion } from '../src/chat-hook';
 
-let addEventListener;
-let streamClose;
+// This has to be hoisted because the mock for the chat stream handler is automatically, and we
+// need somewhere outside of the mock to store state.
+const mocks = vi.hoisted(() => ({
+  getOpenAiRequestOptions: vi.fn(),
+  openAiStreamingDataHandler: vi
+    .fn()
+    .mockImplementation(() => new Promise(vi.fn())),
+}));
 
-// Must be put first in order to ensure the mock is imported by the next set of dependencies
-vi.doMock('sse', () => {
-  const SSE = vi.fn();
-  SSE.prototype.addEventListener = addEventListener = vi.fn();
-  SSE.prototype.stream = vi.fn();
-  SSE.prototype.close = streamClose = vi.fn();
-
-  return { SSE };
-});
-
-// Has to be imported after the SSE mock is defined
-import { useChatCompletion, GPT35, GPT4, ChatRole } from '../src';
+vi.mock('../src/chat-stream-handler', () => ({
+  getOpenAiRequestOptions: mocks.getOpenAiRequestOptions,
+  openAiStreamingDataHandler: mocks.openAiStreamingDataHandler,
+}));
 
 describe('useChatCompletion Hook', () => {
   let result;
 
-  // Before each test, create a new hook and reset the internal state of the SSE mocks
+  // Before each test, create a new hook and reset the chat stream handler mocks
   beforeEach(() => {
     const hookObj = renderHook(() =>
       useChatCompletion({
-        model: GPT35.TURBO,
+        model: 'gpt-3.5-turbo',
         apiKey: '12345',
       })
     );
     result = hookObj.result;
-    addEventListener.mockClear();
-    streamClose.mockClear();
+    mocks.getOpenAiRequestOptions.mockClear();
+    mocks.openAiStreamingDataHandler.mockClear();
   });
 
   it('should have 0 messages when first initialized', () => {
@@ -41,9 +40,7 @@ describe('useChatCompletion Hook', () => {
   it('adds 2 messages to the messages list when 1 message is submitted in the initial query', () => {
     const [, submitQuery] = result.current;
     act(() => {
-      submitQuery([
-        { content: 'What is the meaning of life?', role: ChatRole.USER },
-      ]);
+      submitQuery([{ content: 'What is the meaning of life?', role: 'user' }]);
     });
     const [messages] = result.current;
     expect(messages).toHaveLength(2);
@@ -55,14 +52,50 @@ describe('useChatCompletion Hook', () => {
       submitQuery([
         {
           content: 'What is the meaning of life, the universe, and everything?',
-          role: ChatRole.USER,
+          role: 'user',
         },
-        { content: 'How does gravity work?', role: ChatRole.USER },
-        { content: 'Explain dark matter to me', role: ChatRole.USER },
+        { content: 'How does gravity work?', role: 'user' },
+        { content: 'Explain dark matter to me', role: 'user' },
       ]);
     });
     const [messages] = result.current;
     expect(messages).toHaveLength(4);
+  });
+
+  it('sets the content of the last message to empty before loading results', () => {
+    const [, submitQuery] = result.current;
+    act(() => {
+      submitQuery([{ content: 'What is the meaning of life?', role: 'user' }]);
+    });
+    const [messages] = result.current;
+    expect(messages[1].content).toEqual('');
+  });
+
+  it('sets the role of the last message to empty before loading results', () => {
+    const [, submitQuery] = result.current;
+    act(() => {
+      submitQuery([{ content: 'What is the meaning of life?', role: 'user' }]);
+    });
+    const [messages] = result.current;
+    expect(messages[1].role).toEqual('');
+  });
+
+  it('sets the timestamp of the last message to 0 before loading results', () => {
+    const [, submitQuery] = result.current;
+    act(() => {
+      submitQuery([{ content: 'What is the meaning of life?', role: 'user' }]);
+    });
+    const [messages] = result.current;
+    expect(messages[1].timestamp).toEqual(0);
+  });
+
+  it('sets the loading state of the last message to true before loading results', () => {
+    const [, submitQuery] = result.current;
+    act(() => {
+      submitQuery([{ content: 'What is the meaning of life?', role: 'user' }]);
+    });
+    const [messages] = result.current;
+    expect(messages[1].meta.loading).toEqual(true);
   });
 
   it("doesn't submit a new query if an existing one is already in progress", () => {
@@ -71,10 +104,10 @@ describe('useChatCompletion Hook', () => {
       submitQuery1([
         {
           content: 'What is the meaning of life, the universe, and everything?',
-          role: ChatRole.USER,
+          role: 'user',
         },
-        { content: 'How does gravity work?', role: ChatRole.USER },
-        { content: 'Explain dark matter to me', role: ChatRole.USER },
+        { content: 'How does gravity work?', role: 'user' },
+        { content: 'Explain dark matter to me', role: 'user' },
       ]);
     });
     const [messages1] = result.current;
@@ -82,17 +115,29 @@ describe('useChatCompletion Hook', () => {
     const [, submitQuery2] = result.current;
     act(() => {
       submitQuery2([
-        { content: 'Tell me a story about funny bunnies', role: ChatRole.USER },
+        { content: 'Tell me a story about funny bunnies', role: 'user' },
       ]);
     });
     const [messages2] = result.current;
     expect(messages2).toHaveLength(4); // No change
   });
 
+  it('resets the messages list if submitQuery is invoked with an empty list', () => {
+    const [, submitQuery] = result.current;
+    act(() => {
+      submitQuery([{ content: 'What is the meaning of life?', role: 'user' }]);
+      const closeStream = mocks.openAiStreamingDataHandler.mock.calls[0][2];
+      closeStream(1683182283592);
+      submitQuery([]);
+    });
+    const [messages] = result.current;
+    expect(messages).toHaveLength(0);
+  });
+
   it('works with GPT4 too', () => {
     const hookObj = renderHook(() =>
       useChatCompletion({
-        model: GPT4.BASE,
+        model: 'gpt-4',
         apiKey: '12345',
       })
     );
@@ -100,163 +145,53 @@ describe('useChatCompletion Hook', () => {
     expect(messages).toHaveLength(0);
   });
 
-  describe('Resetting the Messages List', () => {
-    // Before each test, populate the messages queue with a completed query so that it can be
-    // erased by the test.
+  describe('Handling stream events', () => {
+    const response = 'This is a response';
+    const role = 'user';
+    let handleNewData;
+    let closeStream;
+
     beforeEach(() => {
       const [, submitQuery] = result.current;
       act(() => {
         submitQuery([
-          { content: 'What is the meaning of life?', role: ChatRole.USER },
+          { content: 'What is the meaning of life?', role: 'user' },
         ]);
       });
-      const handleStateChangeFn = addEventListener.mock.calls[1][1];
-      act(() => {
-        handleStateChangeFn({ readyState: 2 });
-      });
+      handleNewData = mocks.openAiStreamingDataHandler.mock.calls[0][1];
+      closeStream = mocks.openAiStreamingDataHandler.mock.calls[0][2];
     });
 
-    it('sets the messages to empty when submitQuery is invoked with no params', () => {
-      const [messages1, submitQuery] = result.current;
-      expect(messages1).toHaveLength(2);
+    it('handles text content in chunks of data', () => {
       act(() => {
-        submitQuery();
+        handleNewData(response, role);
+      });
+      const [messages] = result.current;
+      expect(messages[1].content).toEqual(response);
+    });
+
+    it('handles roles in chunks of data', () => {
+      act(() => {
+        handleNewData(response, role);
+      });
+      const [messages] = result.current;
+      expect(messages[1].role).toEqual(role);
+    });
+
+    it('sets the timestamp for the message when the stream closes', () => {
+      act(() => {
+        closeStream(1683182283592);
       });
       const [messages2] = result.current;
-      expect(messages2).toHaveLength(0);
+      expect(messages2[1].timestamp).toBeGreaterThan(0);
     });
 
-    it('sets the messages to empty when submitQuery is invoked with an empty list', () => {
-      const [messages1, submitQuery] = result.current;
-      expect(messages1).toHaveLength(2);
+    it('sets the loading flag to false for the message when the stream closes', () => {
       act(() => {
-        submitQuery([]);
+        closeStream(1683182283592);
       });
       const [messages2] = result.current;
-      expect(messages2).toHaveLength(0);
-    });
-  });
-
-  describe('Event Handlers', () => {
-    describe('Handling Incoming Messages', () => {
-      let handleMessageFn;
-
-      beforeEach(() => {
-        const [, submitQuery] = result.current;
-        act(() => {
-          submitQuery([
-            { content: 'What is the meaning of life?', role: ChatRole.USER },
-          ]);
-        });
-        handleMessageFn = addEventListener.mock.calls[0][1];
-      });
-
-      it('can handle when the role chunk comes in', () => {
-        act(() => {
-          handleMessageFn({
-            data: JSON.stringify({
-              choices: [
-                {
-                  delta: {
-                    content: '',
-                    role: ChatRole.ASSISTANT,
-                  },
-                },
-              ],
-            }),
-          });
-        });
-        const [messages] = result.current;
-        expect(messages[1].role).toEqual(ChatRole.ASSISTANT);
-      });
-
-      it('can handle when a content chunk comes in', () => {
-        act(() => {
-          handleMessageFn({
-            data: JSON.stringify({
-              choices: [
-                {
-                  delta: {
-                    content: 'The',
-                    role: '',
-                  },
-                },
-              ],
-            }),
-          });
-        });
-        const [messages] = result.current;
-        expect(messages[1].content).toEqual('The');
-      });
-
-      it('can handle a chunk with no data', () => {
-        act(() => {
-          handleMessageFn({});
-        });
-        const [messages] = result.current;
-        expect(messages[1].content).toEqual('');
-        expect(messages[1].role).toEqual('');
-      });
-
-      it('can handle a chunk with badly encoded data', () => {
-        act(() => {
-          handleMessageFn({ data: '{ foo ' });
-        });
-        const [messages] = result.current;
-        expect(messages[1].content).toEqual('');
-        expect(messages[1].role).toEqual('');
-      });
-
-      it('can handle when the stream is marked DONE', () => {
-        act(() => {
-          handleMessageFn({ data: '[DONE]' });
-        });
-        expect(streamClose).toBeCalledTimes(1);
-      });
-    });
-
-    describe('Handling Stream State Changes', () => {
-      let handleStateChangeFn;
-
-      beforeEach(() => {
-        const [, submitQuery] = result.current;
-        act(() => {
-          submitQuery([
-            { content: 'What is the meaning of life?', role: ChatRole.USER },
-          ]);
-        });
-        handleStateChangeFn = addEventListener.mock.calls[1][1];
-      });
-
-      it('sets the loading state on the last message to false when the stream has finished', () => {
-        const [messages1] = result.current;
-        expect(messages1[1].meta.loading).toEqual(true);
-        act(() => {
-          handleStateChangeFn({ readyState: 2 });
-        });
-        const [messages2] = result.current;
-        expect(messages2[1].meta.loading).toEqual(false);
-      });
-
-      it('adds a total response time to the last message when the stream has finished', () => {
-        const [messages1] = result.current;
-        expect(messages1[1].meta.responseTime === '').toEqual(true);
-        act(() => {
-          handleStateChangeFn({ readyState: 2 });
-        });
-        const [messages2] = result.current;
-        expect(messages2[1].meta.responseTime === '').toEqual(false);
-      });
-
-      it("ignores state changes that aren't related to the stream finishing", () => {
-        const [messages1] = result.current;
-        expect(messages1[1].meta.loading).toEqual(true);
-        act(() => {
-          handleStateChangeFn({ readyState: 1 });
-        });
-        const [messages2] = result.current;
-        expect(messages2[1].meta.loading).toEqual(true);
-      });
+      expect(messages2[1].meta.loading).toEqual(false);
     });
   });
 });
