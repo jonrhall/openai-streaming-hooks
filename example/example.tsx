@@ -16,14 +16,14 @@ const formatDate = (date: Date) =>
 
 const ExampleComponent = () => {
   const [promptText, setPromptText] = React.useState('');
-  const [messages, submitMessage] = useChatCompletion({
+  const { messages, submitPrompt } = useChatCompletion({
     model: 'gpt-3.5-turbo',
     apiKey: import.meta.env.VITE_OPENAI_API_KEY,
     temperature: 0.9,
   });
 
   const onSend = () => {
-    submitMessage([{ content: promptText, role: 'user' }]);
+    submitPrompt([{ content: promptText, role: 'user' }]);
     setPromptText('');
   };
 

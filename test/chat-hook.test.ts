@@ -17,132 +17,240 @@ vi.mock('../src/chat-stream-handler', () => ({
 }));
 
 describe('useChatCompletion Hook', () => {
-  let result;
+  let hookObj;
 
   // Before each test, create a new hook and reset the chat stream handler mocks
   beforeEach(() => {
-    const hookObj = renderHook(() =>
+    const hook = renderHook(() =>
       useChatCompletion({
         model: 'gpt-3.5-turbo',
         apiKey: '12345',
       })
     );
-    result = hookObj.result;
+    hookObj = hook.result;
     mocks.getOpenAiRequestOptions.mockClear();
     mocks.openAiStreamingDataHandler.mockClear();
   });
 
   it('should have 0 messages when first initialized', () => {
-    const [messages] = result.current;
+    const { messages } = hookObj.current;
     expect(messages).toHaveLength(0);
   });
 
-  it('adds 2 messages to the messages list when 1 message is submitted in the initial query', () => {
-    const [, submitQuery] = result.current;
-    act(() => {
-      submitQuery([{ content: 'What is the meaning of life?', role: 'user' }]);
+  describe('Submitting a new prompt', () => {
+    it('adds 2 messages to the messages list when 1 message is submitted in the initial prompt', () => {
+      const { submitPrompt } = hookObj.current;
+      act(() => {
+        submitPrompt([
+          { content: 'What is the meaning of life?', role: 'user' },
+        ]);
+      });
+      const { messages } = hookObj.current;
+      expect(messages).toHaveLength(2);
     });
-    const [messages] = result.current;
-    expect(messages).toHaveLength(2);
+
+    it('adds N+1 messages to the messages list when N messages are submitted in the initial prompt', () => {
+      const { submitPrompt } = hookObj.current;
+      act(() => {
+        submitPrompt([
+          {
+            content:
+              'What is the meaning of life, the universe, and everything?',
+            role: 'user',
+          },
+          { content: 'How does gravity work?', role: 'user' },
+          { content: 'Explain dark matter to me', role: 'user' },
+        ]);
+      });
+      const { messages } = hookObj.current;
+      expect(messages).toHaveLength(4);
+    });
+
+    it('sets the content of the last message to empty before loading hookObjs', () => {
+      const { submitPrompt } = hookObj.current;
+      act(() => {
+        submitPrompt([
+          { content: 'What is the meaning of life?', role: 'user' },
+        ]);
+      });
+      const { messages } = hookObj.current;
+      expect(messages[1].content).toEqual('');
+    });
+
+    it('sets the role of the last message to empty before loading hookObjs', () => {
+      const { submitPrompt } = hookObj.current;
+      act(() => {
+        submitPrompt([
+          { content: 'What is the meaning of life?', role: 'user' },
+        ]);
+      });
+      const { messages } = hookObj.current;
+      expect(messages[1].role).toEqual('');
+    });
+
+    it('sets the timestamp of the last message to 0 before loading hookObjs', () => {
+      const { submitPrompt } = hookObj.current;
+      act(() => {
+        submitPrompt([
+          { content: 'What is the meaning of life?', role: 'user' },
+        ]);
+      });
+      const { messages } = hookObj.current;
+      expect(messages[1].timestamp).toEqual(0);
+    });
+
+    it('sets the loading state of the last message to true before loading hookObjs', () => {
+      const { submitPrompt } = hookObj.current;
+      act(() => {
+        submitPrompt([
+          { content: 'What is the meaning of life?', role: 'user' },
+        ]);
+      });
+      const { messages } = hookObj.current;
+      expect(messages[1].meta.loading).toEqual(true);
+    });
+
+    it("doesn't submit a new prompt if an existing one is already in progress", () => {
+      const { submitPrompt: submitPrompt1 } = hookObj.current;
+      act(() => {
+        submitPrompt1([
+          {
+            content:
+              'What is the meaning of life, the universe, and everything?',
+            role: 'user',
+          },
+          { content: 'How does gravity work?', role: 'user' },
+          { content: 'Explain dark matter to me', role: 'user' },
+        ]);
+      });
+      const { submitPrompt: submitPrompt2 } = hookObj.current;
+      act(() => {
+        submitPrompt2([
+          { content: 'Tell me a story about funny bunnies', role: 'user' },
+        ]);
+      });
+      const { messages } = hookObj.current;
+      expect(messages).toHaveLength(4); // No change
+    });
   });
 
-  it('adds N+1 messages to the messages list when N messages are submitted in the initial query', () => {
-    const [, submitQuery] = result.current;
-    act(() => {
-      submitQuery([
-        {
-          content: 'What is the meaning of life, the universe, and everything?',
-          role: 'user',
-        },
-        { content: 'How does gravity work?', role: 'user' },
-        { content: 'Explain dark matter to me', role: 'user' },
-      ]);
+  describe('Resetting the messages list', () => {
+    it('resets the list when not loading', () => {
+      const { setMessages } = hookObj.current;
+      act(() => {
+        setMessages([
+          { content: 'Tell me a story about funny bunnies', role: 'user' },
+        ]);
+      });
+      const { resetMessages } = hookObj.current;
+      act(() => {
+        resetMessages();
+      });
+      const { messages } = hookObj.current;
+      expect(messages).toHaveLength(0);
     });
-    const [messages] = result.current;
-    expect(messages).toHaveLength(4);
+
+    it("doesn't reset the list when a response is loading", () => {
+      const { submitPrompt } = hookObj.current;
+      act(() => {
+        submitPrompt([
+          { content: 'What is the meaning of life?', role: 'user' },
+        ]);
+      });
+      const { resetMessages } = hookObj.current;
+      act(() => {
+        resetMessages();
+      });
+      const { messages } = hookObj.current;
+      expect(messages).toHaveLength(2);
+    });
   });
 
-  it('sets the content of the last message to empty before loading results', () => {
-    const [, submitQuery] = result.current;
-    act(() => {
-      submitQuery([{ content: 'What is the meaning of life?', role: 'user' }]);
+  describe('Setting the messages list', () => {
+    const message = {
+      content: 'Tell me a story about funny bunnies',
+      role: 'user',
+    };
+
+    beforeEach(() => {
+      const { setMessages } = hookObj.current;
+      act(() => {
+        setMessages([message]);
+      });
     });
-    const [messages] = result.current;
-    expect(messages[1].content).toEqual('');
+
+    it('sets the messages list when not loading', () => {
+      const { messages } = hookObj.current;
+      expect(messages).toHaveLength(1);
+      expect(messages[0].content).toEqual(message.content);
+      expect(messages[0].role).toEqual(message.role);
+    });
+
+    it("doesn't set the messages list when a response is loading", () => {
+      const { submitPrompt } = hookObj.current;
+      act(() => {
+        submitPrompt([
+          { content: 'You are a helpful writing assistant', role: 'system' },
+        ]);
+      });
+      const { setMessages } = hookObj.current;
+      act(() => {
+        setMessages([
+          { content: 'How may I help you today?', role: 'assistant' },
+        ]);
+      });
+      const { messages } = hookObj.current;
+      expect(messages).toHaveLength(3);
+    });
+
+    it('overwrites any existing messages that exist in the list', () => {
+      const { setMessages } = hookObj.current;
+      act(() => {
+        setMessages([
+          { content: 'How may I help you today?', role: 'assistant' },
+          { content: 'Tell me a story about funny bunnies', role: 'user' },
+        ]);
+      });
+      const { messages } = hookObj.current;
+      expect(messages).toHaveLength(2);
+      expect(messages[0].content).toEqual('How may I help you today?');
+      expect(messages[0].role).toEqual('assistant');
+      expect(messages[1].content).toEqual(
+        'Tell me a story about funny bunnies'
+      );
+      expect(messages[1].role).toEqual('user');
+    });
+
+    it('converts any message without full ChatMessage properties into an object with all ChatMessage properties', () => {
+      const { messages } = hookObj.current;
+      expect(messages).toHaveLength(1);
+      expect(messages[0].timestamp).toBeTypeOf('number');
+      expect(messages[0].meta.loading).toEqual(false);
+      expect(messages[0].meta.responseTime).toEqual('');
+      expect(messages[0].meta.chunks).toEqual([]);
+    });
   });
 
-  it('sets the role of the last message to empty before loading results', () => {
-    const [, submitQuery] = result.current;
-    act(() => {
-      submitQuery([{ content: 'What is the meaning of life?', role: 'user' }]);
-    });
-    const [messages] = result.current;
-    expect(messages[1].role).toEqual('');
-  });
+  describe('Aborting a streaming response', () => {
+    const message = {
+      content: 'Tell me a story about funny bunnies',
+      role: 'user',
+    };
 
-  it('sets the timestamp of the last message to 0 before loading results', () => {
-    const [, submitQuery] = result.current;
-    act(() => {
-      submitQuery([{ content: 'What is the meaning of life?', role: 'user' }]);
+    it('aborts the stream', () => {
+      const { submitPrompt } = hookObj.current;
+      act(() => {
+        submitPrompt([message]);
+      });
+      const { abortResponse } = hookObj.current;
+      act(() => {
+        abortResponse();
+      });
+      const { messages } = hookObj.current;
+      expect(messages).toHaveLength(2);
+      expect(messages[0].content).toEqual(message.content);
+      expect(messages[0].role).toEqual(message.role);
     });
-    const [messages] = result.current;
-    expect(messages[1].timestamp).toEqual(0);
-  });
-
-  it('sets the loading state of the last message to true before loading results', () => {
-    const [, submitQuery] = result.current;
-    act(() => {
-      submitQuery([{ content: 'What is the meaning of life?', role: 'user' }]);
-    });
-    const [messages] = result.current;
-    expect(messages[1].meta.loading).toEqual(true);
-  });
-
-  it("doesn't submit a new query if an existing one is already in progress", () => {
-    const [, submitQuery1] = result.current;
-    act(() => {
-      submitQuery1([
-        {
-          content: 'What is the meaning of life, the universe, and everything?',
-          role: 'user',
-        },
-        { content: 'How does gravity work?', role: 'user' },
-        { content: 'Explain dark matter to me', role: 'user' },
-      ]);
-    });
-    const [messages1] = result.current;
-    expect(messages1).toHaveLength(4);
-    const [, submitQuery2] = result.current;
-    act(() => {
-      submitQuery2([
-        { content: 'Tell me a story about funny bunnies', role: 'user' },
-      ]);
-    });
-    const [messages2] = result.current;
-    expect(messages2).toHaveLength(4); // No change
-  });
-
-  it('resets the messages list if submitQuery is invoked with an empty list', () => {
-    const [, submitQuery] = result.current;
-    act(() => {
-      submitQuery([{ content: 'What is the meaning of life?', role: 'user' }]);
-      const closeStream = mocks.openAiStreamingDataHandler.mock.calls[0][2];
-      closeStream(1683182283592);
-      submitQuery([]);
-    });
-    const [messages] = result.current;
-    expect(messages).toHaveLength(0);
-  });
-
-  it('works with GPT4 too', () => {
-    const hookObj = renderHook(() =>
-      useChatCompletion({
-        model: 'gpt-4',
-        apiKey: '12345',
-      })
-    );
-    const [messages] = hookObj.result.current;
-    expect(messages).toHaveLength(0);
   });
 
   describe('Handling stream events', () => {
@@ -152,9 +260,9 @@ describe('useChatCompletion Hook', () => {
     let closeStream;
 
     beforeEach(() => {
-      const [, submitQuery] = result.current;
+      const { submitPrompt } = hookObj.current;
       act(() => {
-        submitQuery([
+        submitPrompt([
           { content: 'What is the meaning of life?', role: 'user' },
         ]);
       });
@@ -166,7 +274,7 @@ describe('useChatCompletion Hook', () => {
       act(() => {
         handleNewData(response, role);
       });
-      const [messages] = result.current;
+      const { messages } = hookObj.current;
       expect(messages[1].content).toEqual(response);
     });
 
@@ -174,7 +282,7 @@ describe('useChatCompletion Hook', () => {
       act(() => {
         handleNewData(response, role);
       });
-      const [messages] = result.current;
+      const { messages } = hookObj.current;
       expect(messages[1].role).toEqual(role);
     });
 
@@ -182,16 +290,16 @@ describe('useChatCompletion Hook', () => {
       act(() => {
         closeStream(1683182283592);
       });
-      const [messages2] = result.current;
-      expect(messages2[1].timestamp).toBeGreaterThan(0);
+      const { messages } = hookObj.current;
+      expect(messages[1].timestamp).toBeGreaterThan(0);
     });
 
     it('sets the loading flag to false for the message when the stream closes', () => {
       act(() => {
         closeStream(1683182283592);
       });
-      const [messages2] = result.current;
-      expect(messages2[1].meta.loading).toEqual(false);
+      const { messages } = hookObj.current;
+      expect(messages[1].meta.loading).toEqual(false);
     });
   });
 });

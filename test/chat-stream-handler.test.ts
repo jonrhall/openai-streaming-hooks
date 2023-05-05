@@ -90,12 +90,12 @@ describe('Handling streaming responses from the OpenAI chat API', () => {
         },
       });
 
-      mockFetch.mockResolvedValueOnce({ body: stream });
+      mockFetch.mockResolvedValueOnce({ body: stream, ok: true });
     };
 
     it('calls onIncomingChunk function for each chunk received', async () => {
       createStream([
-        `data: {"id": "123", "choices": [{"text": "${contentChunk}", "delta": {"role": "${roleChunk}"}}]}\n\n`,
+        `data: {"id": "123", "choices": [{"text": "${roleChunk}", "delta": {"role": "${roleChunk}"}}]}\n\n`,
         `data: {"id": "456", "choices": [{"text": "${contentChunk}", "delta": {"content": "${contentChunk}"}}]}\n\n`,
         'data: [DONE]\n\n',
       ]);
@@ -108,7 +108,7 @@ describe('Handling streaming responses from the OpenAI chat API', () => {
 
     it('calls onCloseStream function after the stream has closed', async () => {
       createStream([
-        `data: {"id": "123", "choices": [{"text": "${contentChunk}", "delta": {"role": "${roleChunk}"}}]}\n\n`,
+        `data: {"id": "123", "choices": [{"text": "${roleChunk}", "delta": {"role": "${roleChunk}"}}]}\n\n`,
         `data: {"id": "456", "choices": [{"text": "${contentChunk}", "delta": {"content": "${contentChunk}"}}]}\n\n`,
         'data: [DONE]\n\n',
       ]);
@@ -120,7 +120,7 @@ describe('Handling streaming responses from the OpenAI chat API', () => {
 
     it('calls onCloseStream function with a timestamp from before the request was made', async () => {
       createStream([
-        `data: {"id": "123", "choices": [{"text": "${contentChunk}", "delta": {"role": "${roleChunk}"}}]}\n\n`,
+        `data: {"id": "123", "choices": [{"text": "${roleChunk}", "delta": {"role": "${roleChunk}"}}]}\n\n`,
         `data: {"id": "456", "choices": [{"text": "${contentChunk}", "delta": {"content": "${contentChunk}"}}]}\n\n`,
         'data: [DONE]\n\n',
       ]);
@@ -128,6 +128,23 @@ describe('Handling streaming responses from the OpenAI chat API', () => {
       await openAiStreamingDataHandler(options, onIncomingChunk, onCloseStream);
 
       expect(onCloseStream.mock.calls[0][0]).toBeTypeOf('number');
+    });
+
+    it('returns the full completion from the original function call when the response stream has finished', async () => {
+      createStream([
+        `data: {"id": "123", "choices": [{"text": "${roleChunk}", "delta": {"role": "${roleChunk}"}}]}\n\n`,
+        `data: {"id": "456", "choices": [{"text": "${contentChunk}", "delta": {"content": "${contentChunk}"}}]}\n\n`,
+        'data: [DONE]\n\n',
+      ]);
+
+      const message = await openAiStreamingDataHandler(
+        options,
+        onIncomingChunk,
+        onCloseStream
+      );
+
+      expect(message.content).toEqual(contentChunk);
+      expect(message.role).toEqual(roleChunk);
     });
 
     it('can handle multiple chunks of data in the same stream response body', async () => {
@@ -144,10 +161,22 @@ describe('Handling streaming responses from the OpenAI chat API', () => {
   });
 
   it('throws an error when no body is included in POST response object', async () => {
-    mockFetch.mockResolvedValueOnce({});
+    mockFetch.mockResolvedValueOnce({ ok: true });
 
     await expect(
       openAiStreamingDataHandler(options, onIncomingChunk, onCloseStream)
     ).rejects.toThrow('No body included in POST response object');
+  });
+
+  it('throws an error when the response is a non-2XX HTTP code', async () => {
+    mockFetch.mockResolvedValueOnce({
+      ok: false,
+      status: '401',
+      statusText: 'Unauthorized',
+    });
+
+    await expect(
+      openAiStreamingDataHandler(options, onIncomingChunk, onCloseStream)
+    ).rejects.toThrow('Network response was not ok: 401 - Unauthorized');
   });
 });

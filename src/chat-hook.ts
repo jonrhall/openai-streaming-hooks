@@ -8,7 +8,7 @@ import type {
   OpenAIChatMessage,
   ChatMessageParams,
   OpenAIStreamingParams,
-  ChatRole,
+  OpenAIChatRole,
 } from './types';
 
 const MILLISECONDS_PER_SECOND = 1000;
@@ -50,17 +50,40 @@ const updateLastItem =
     });
 
 export const useChatCompletion = (apiParams: OpenAIStreamingParams) => {
-  const [messages, setMessages] = React.useState<ChatMessage[]>([]);
+  const [messages, _setMessages] = React.useState<ChatMessage[]>([]);
+  const [loading, setLoading] = React.useState(false);
   const [controller, setController] = React.useState<AbortController | null>(
     null
   );
 
+  // Abort an in-progress streaming response
+  const abortResponse = () => {
+    if (controller) {
+      controller.abort();
+      setController(null);
+    }
+  };
+
+  // Reset the messages list as long as a response isn't being loaded.
+  const resetMessages = () => {
+    if (!loading) {
+      _setMessages([]);
+    }
+  };
+
+  // Overwrites all existing messages with the list of messages passed to it.
+  const setMessages = (newMessages: ChatMessageParams[]) => {
+    if (!loading) {
+      _setMessages(newMessages.map(createChatMessage));
+    }
+  };
+
   // When new data comes in, add the incremental chunk of data to the last message.
-  const handleNewData = (chunkContent: string, chunkRole: ChatRole) => {
-    setMessages(
+  const handleNewData = (chunkContent: string, chunkRole: OpenAIChatRole) => {
+    _setMessages(
       updateLastItem((msg) => ({
         content: `${msg.content}${chunkContent}`,
-        role: `${msg.role}${chunkRole}` as ChatRole,
+        role: `${msg.role}${chunkRole}` as OpenAIChatRole,
         timestamp: 0,
         meta: {
           ...msg.meta,
@@ -87,7 +110,7 @@ export const useChatCompletion = (apiParams: OpenAIStreamingParams) => {
 
     // Update the messages list, specifically update the last message entry with the final
     // details of the full request/response.
-    setMessages(
+    _setMessages(
       updateLastItem((msg) => ({
         ...msg,
         timestamp: afterTimestamp,
@@ -100,18 +123,18 @@ export const useChatCompletion = (apiParams: OpenAIStreamingParams) => {
     );
   };
 
-  const submitQuery = React.useCallback(
+  const submitPrompt = React.useCallback(
     async (newMessages?: ChatMessageParams[]) => {
       // Don't let two streaming calls occur at the same time. If the last message in the list has
       // a `loading` state set to true, we know there is a request in progress.
       if (messages[messages.length - 1]?.meta?.loading) return;
 
-      // If the array is empty or there are no new messages submited, that is a special request to
-      // clear the `messages` queue and prepare to start over, do not make a request.
+      // If the array is empty or there are no new messages submited, do not make a request.
       if (!newMessages || newMessages.length < 1) {
-        setMessages([]);
         return;
       }
+
+      setLoading(true);
 
       // Update the messages list with the new message as well as a placeholder for the next message
       // that will be returned from the API.
@@ -127,7 +150,7 @@ export const useChatCompletion = (apiParams: OpenAIStreamingParams) => {
       ];
 
       // Set the updated message list.
-      setMessages(updatedMessages);
+      _setMessages(updatedMessages);
 
       // Create a controller that can abort the entire request.
       const newController = new AbortController();
@@ -165,10 +188,19 @@ export const useChatCompletion = (apiParams: OpenAIStreamingParams) => {
       } finally {
         // Remove the AbortController now the response has completed.
         setController(null);
+        // Set the loading state to false
+        setLoading(false);
       }
     },
-    [messages, setMessages]
+    [messages]
   );
 
-  return [messages, submitQuery] as [ChatMessage[], typeof submitQuery];
+  return {
+    messages,
+    loading,
+    submitPrompt,
+    abortResponse,
+    resetMessages,
+    setMessages,
+  };
 };

@@ -2,16 +2,16 @@ export type GPT35Model = 'gpt-3.5-turbo' | 'gpt-3.5-turbo-0301';
 
 export type GPT4Model = 'gpt-4' | 'gpt-4-0314' | 'gpt-4-32k' | 'gpt-4-32k-0314';
 
-export type ChatRole = 'user' | 'assistant' | 'system' | '';
+export type OpenAIChatRole = 'user' | 'assistant' | 'system' | '';
 
 export type Model = GPT35Model | GPT4Model;
 
 export interface OpenAIChatMessage {
   content: string;
-  role: ChatRole;
+  role: OpenAIChatRole;
 }
 
-export interface ChatCompletionChunk {
+export interface OpenAIChatCompletionChunk {
   id: string;
   object: string;
   created: number;
@@ -23,7 +23,7 @@ export interface ChatCompletionChunk {
   }[];
 }
 
-export interface ChatMessageToken extends OpenAIChatMessage {
+export interface ChatCompletionToken extends OpenAIChatMessage {
   timestamp: number;
 }
 
@@ -32,7 +32,7 @@ export interface ChatMessageParams extends OpenAIChatMessage {
   meta?: {
     loading?: boolean;
     responseTime?: string;
-    chunks?: ChatMessageToken[];
+    chunks?: ChatCompletionToken[];
   };
 }
 
@@ -41,7 +41,7 @@ export interface ChatMessage extends OpenAIChatMessage {
   meta: {
     loading: boolean;
     responseTime: string;
-    chunks: ChatMessageToken[];
+    chunks: ChatCompletionToken[];
   };
 }
 

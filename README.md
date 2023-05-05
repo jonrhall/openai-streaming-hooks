@@ -1,14 +1,16 @@
 # OpenAI Streaming Hooks
 
 > Talk directly to [OpenAI Completion APIs](https://platform.openai.com/docs/api-reference/chat) and stream the response back in real-time in the browser--no server required.
+>
+> **All models based on GPT3.5 and GPT4 are supported!**
 
-Provides [custom React Hooks](https://react.dev/learn/reusing-logic-with-custom-hooks) capable of calling OpenAI Completions APIs with [streaming support](https://github.com/openai/openai-cookbook/blob/main/examples/How_to_stream_completions.ipynb) enabled by [ReadableStreams](https://developer.mozilla.org/en-US/docs/Web/API/ReadableStream).
+Provides a [custom React Hook](https://react.dev/learn/reusing-logic-with-custom-hooks) capable of calling OpenAI Chat Completions APIs with [streaming support](https://github.com/openai/openai-cookbook/blob/main/examples/How_to_stream_completions.ipynb) enabled by [ReadableStreams](https://developer.mozilla.org/en-US/docs/Web/API/ReadableStream).
 
 The library then decorates every Completion response with metadata about the transaction such as:
 
 - The number of tokens used in the response
-- The time it took to complete the request
-- Each chunk of the stream
+- The total time it took to complete the request
+- Each chunk received in the stream
 - The timestamp each chunk was received
 - The timestamp from when the Completion was finished
 
@@ -31,21 +33,38 @@ npm install --save openai-streaming-hooks
 2. Import the hook and use it:
 
 ```tsx
-import { useChatCompletion, GPT35 } from 'openai-streaming-hooks';
+import { useChatCompletion } from 'openai-streaming-hooks';
 
 const Component = () => {
-  const [messages, submitQuery] = useChatCompletion({
-    model: 'gpt-3.5-turbo',
-    apiKey: 'your-api-key',
+  const { messages, submitPrompt } = useChatCompletion({
+    model: 'gpt-3.5-turbo', // Required
+    apiKey: 'your-api-key', // Required
     temperature: 0.9,
   });
   ...
 };
 ```
 
-> [All API parameters supported by the OpenAI Chat API](https://platform.openai.com/docs/api-reference/chat) are also supported here.
->
-> For example, it is OK to include optional params like `temperature`, `max_tokens`, etc. when instantiating the chat hook in the above code block.
+### Supported Model Parameters
+
+[All API parameters supported by the OpenAI Chat API](https://platform.openai.com/docs/api-reference/chat) are also supported here.
+
+For example, it is OK to include optional params like `temperature`, `max_tokens`, etc. when instantiating the chat hook in the above code block.
+
+### Hook Shape
+
+Invoking the hook returns several properties for manipulating messages, submitting queries and understanding the state of the hook:
+
+```ts
+const {
+  messages, // The list of messages in the completion
+  loading, // If a new completion request is currently in progress
+  submitPrompt, // Submits a prompt for completion, for more information see "Submitting a Prompt"
+  abortResponse, // Allows the user to abort a chat response that is in progress, see "Aborting responses"
+  resetMessages, // Reset the messages list to empty, see "Resetting Message List"
+  setMessages, // Overwrites any messages in the list, see "Setting Message List"
+} = useChatCompletion(...);
+```
 
 ## Types of Completions
 
@@ -62,7 +81,7 @@ For more information on chat vs. text completion models, see [LangChain's excell
 
 ### Chat Completions
 
-An individual message in a Chat Completion's `messages` list looks like:
+An individual message in a chat completion's `messages` list looks like this:
 
 ```ts
 interface ChatMessage {
@@ -72,24 +91,24 @@ interface ChatMessage {
   meta: {
     loading: boolean; // If the completion is still being executed
     responseTime: string; // The total elapsed time the completion took
-    chunks: ChatMessageToken[]; // The chunks returned as a part of streaming the execution of the completion
+    chunks: ChatCompletionToken[]; // The chunks returned as a part of streaming the execution of the completion
   };
 }
 ```
 
-Each chunk corresponds to a token streamed back to the client in the completion. A `ChatMessageToken` is the base incremental shape that content in the stream returned from the OpenAI API looks like:
+Each chunk corresponds to a token streamed back to the client in the completion. A `ChatCompletionToken` is the base incremental shape of content in the stream returned from the OpenAI API. It looks like this:
 
 ```ts
-interface ChatMessageToken {
+interface ChatCompletionToken {
   content: string; // The partial content, if any, received in the chunk
   role: string; // The role, if any, received in the chunk
   timestamp: number; // The time the chunk was received
 }
 ```
 
-## Submitting a Query
+## Submitting a Prompt
 
-Call the `submitQuery` function to spawn a request whose response will be streamed back to the client from the OpenAI Chat Completions API. A query takes a list of new messages to append to the existing `messages` list and submit to OpenAI.
+Call the `submitPrompt` function to initiate a chat completion request whose response will be streamed back to the client from the OpenAI Chat Completions API. A query takes a list of new messages to append to the existing `messages` list and submits fully appended `messages` list to OpenAI's Chat Completions API.
 
 A sample message list might look like:
 
@@ -106,7 +125,7 @@ const newMessages = [
 ];
 ```
 
-When the query is submitted, a blank message is appended to the end of the `messages` list with its `meta.loading` state set to `true`. This message will be where the content that is streamed back to the client is collected in real-time.
+When the prompt is submitted, a blank message is appended to the end of the `messages` list with its `meta.loading` state set to `true` (the `loading` flag of the hook will also be set to `true`). This message will be where the content that is streamed back to the client is collected in real-time.
 
 New chunks of the message will appear in the `meta.chunks` list and your React component will be updated every time a new chunk appears automatically.
 
@@ -114,7 +133,19 @@ New chunks of the message will appear in the `meta.chunks` list and your React c
 >
 > By counting the number of chunks, you can count the number of tokens that a response used.
 
-If the `submitQuery` function is called without any parameters or with an empty list, no request will be sent and instead the `messages` list will be set back to empty.
+### Aborting responses
+
+If a prompt has been submitted and the response is still being streamed back to the client, it is possible to invoke the `abortResponse` function to stop the response stream from continuing. This function will only work if the request is in progress.
+
+## Setting Message List
+
+The hook exposes a `setMessages` function which will overwrite any existing messages
+
+This function will not set the messages list is a chat complete request is in progress.
+
+## Resetting Message List
+
+If the `resetMessages` function is called the messages list will be set back to empty, as long as the function is invoked when a chat completion request isn't in progress.
 
 ## Running the Example
 
