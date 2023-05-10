@@ -15,12 +15,14 @@
     "test:coverage": "vitest run --coverage",
     "prettier": "prettier --write ."
   },
-  "keywords": [
-    "react",
-    "react-hooks",
-    "openai"
-  ],
+  "keywords": ["react", "react-hooks", "openai"],
   "author": "jonrhall",
+  "contributors": [
+    {
+      "name": "Michael Flohr",
+      "url": "https://github.com/MatchuPitchu"
+    }
+  ],
   "license": "MIT",
   "dependencies": {
     "react": "^18.2.0"
