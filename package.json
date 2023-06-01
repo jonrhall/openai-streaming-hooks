@@ -15,7 +15,11 @@
     "test:coverage": "vitest run --coverage",
     "prettier": "prettier --write ."
   },
-  "keywords": ["react", "react-hooks", "openai"],
+  "keywords": [
+    "react",
+    "react-hooks",
+    "openai"
+  ],
   "author": "jonrhall",
   "contributors": [
     {
@@ -25,7 +29,8 @@
   ],
   "license": "MIT",
   "dependencies": {
-    "react": "^18.2.0"
+    "react": "^18.2.0",
+    "web-streams-polyfill": "^3.2.1"
   },
   "devDependencies": {
     "@testing-library/react": "^14.0.0",
