@@ -1,3 +1,5 @@
+import { ReadableStream } from "web-streams-polyfill/ponyfill";
+
 import type {
   OpenAIStreamingParams,
   OpenAIChatMessage,
@@ -60,7 +62,24 @@ export const openAiStreamingDataHandler = async (
   let content = '';
   let role = '';
 
-  for await (const newData of response.body as unknown as NodeJS.ReadableStream) {
+  const reader = response.body.getReader();
+  const stream = new ReadableStream({
+    start(controller) {
+      return pump();
+      async function pump(): Promise<void> {
+        return reader.read().then(({ done, value }) => {
+          if (done) {
+            controller.close();
+            return;
+          }
+          controller.enqueue(value);
+          return pump();
+        });
+      }
+    },
+  });
+
+  for await (const newData of stream) {
     // Decode the data
     const decodedData = textDecoder.decode(newData as Buffer);
     // Split the data into lines to process
