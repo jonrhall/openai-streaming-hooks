@@ -141,7 +141,7 @@ If a prompt has been submitted and the response is still being streamed back to 
 
 The hook exposes a `setMessages` function which will overwrite any existing messages
 
-This function will not set the messages list is a chat complete request is in progress.
+This function will not set the messages list if a chat complete request is in progress.
 
 ## Resetting Message List
 
